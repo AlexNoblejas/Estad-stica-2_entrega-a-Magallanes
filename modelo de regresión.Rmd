@@ -1,0 +1,757 @@
+---
+title: "ENTREGA N° 3 DE ESTADÍSTICA PARA EL ANÁLISIS POLÍTICO"
+output: html_document
+---
+
+- Instalación de paquetes
+```{r}
+#install.packages("jtools")
+library(jtools)
+#install.packages("ggstance")
+library(ggstance)
+#install.packages("broom.mixed")
+library(broom.mixed)
+
+```
+
+
+- Abro la base de datos
+```{r}
+library(rio)
+data <- import("base.xlsx")
+```
+
+- Exploro la data
+
+```{r}
+names(data)
+head(data)
+str (data)
+
+```
++ Se observa que tenemos una data frame con cuartro (04) variables. Para nuestro análisis de regresión vamos a utilizar sólo lás numéricas, que son 3: "Esperanza de vida en el nacimiento", "Personas que usan al menos el servicio básico de agua potable", "flujos financieron, netos, bilaterales" y "La prevalencia de la anemia entre niños de 6 a 59 meses".
+
+
+- Eliminación de casos perdidos
+
+```{r}
+library(Rmisc)
+data = data[complete.cases(data$`2020 [YR2020] - Life expectancy at birth, total (years) [SP.DYN.LE00.IN]`),]
+data = data[complete.cases(data$`2020 [YR2020] - People using at least basic drinking water services (% of population) [SH.H2O.BASW.ZS]`),]
+data = data[complete.cases(data$`2020 [YR2020] - Net financial flows, bilateral (NFL, current US$) [DT.NFL.BLAT.CD]`),]
+data = data[complete.cases(data$`2020 [YR2020] - Prevalence of anemia among children (% of children ages 6-59 months) [SH.ANM.CHLD.ZS]`),]
+```
+
+Cambiar nombre a la variables
+
+```{r}
+colnames(data) = c("COUNTRY","LIFE EXPECTANCY","ACCESS TO BASIC DRINKING WATER SERVICES", "NET FINANCIAL FLOWS", "PREVALENCE OF ANEMIA")
+```
+
+
+##CASO DE ESTUDIO
+
+- Se pretende analizar los factores que influyen en la esperanza de vida en los países del mundo. Para ello, hemos tomado una base de datos del año 2020. 
+
+Hipótesis:
+
+*H1:* La esperanza de vida en los países del mundo responde al acceso del servicio básico de agua potable
+
+*H2:*La esperanza de vida en los países del mundo responde a los flujos financieros netos, bilaterales, del país
+
+*h3:* La esperanza de vida en los países del mundo responde a la prevalencia de la anemia
+
+
+Exploración de modelo [del ejemplo]
+
+```{r}
+modelo0=formula(data$`LIFE EXPECTANCY`~data$`ACCESS TO BASIC DRINKING WATER SERVICES` + data$`PREVALENCE OF ANEMIA`)
+modelo0
+```
+
+```{r}
+library(stargazer)
+modelo=lm(modelo0,data=data)
+stargazer(modelo,type = "text",intercept.bottom = FALSE)
+summary(modelo)
+```
+
+
+##Modelo 1 - hipótesis 1
+
+*H1:* La esperanza de vida en los países del mundo responde al acceso del servicio básico de agua potable
+
+```{r}
+modelo1=lm(data$`LIFE EXPECTANCY`~data$`ACCESS TO BASIC DRINKING WATER SERVICES`,data = data)
+summary(modelo1)
+
+```
+
+```{r}
+library(stargazer)
+model1=lm(modelo1,data=data)
+stargazer(model1,type = "text",intercept.bottom = FALSE)
+```
+Al probar esta hipótesis vemos, primero que la variable "Acceso al agua potable" tiene efecto significativo al
+
+
+##Modelo 2 - Hipótesis 2
+
+*H2:*La esperanza de vida en los países del mundo responde a los flujos financieros netos, bilaterales, del país
+
+```{r}
+modelo2=lm(data$`LIFE EXPECTANCY`~data$`NET FINANCIAL FLOWS`,data = data)
+summary(modelo2)
+```
+Interpretación:
+
+##Modelo 3 - Hipótesis 3
+
+*h3:* La esperanza de vida en los países del mundo responde a la prevalencia de la anemia
+
+```{r}
+modelo3=lm(data$`LIFE EXPECTANCY`~data$`PREVALENCE OF ANEMIA`,data = data)
+summary(modelo3)
+```
+
+
+
+## Modelo adicional: Modelo 4 (variables que más explican)
+
+```{r}
+modelo4=lm(data$`LIFE EXPECTANCY`~data$`ACCESS TO BASIC DRINKING WATER SERVICES`+ data$`PREVALENCE OF ANEMIA`,data = data)
+summary(modelo4)
+```
+
+
+##¿La reducción del error es significativo entre el primer y el cuarto modelo de regresión?
+
+```{r}
+tanova=anova(modelo1,modelo4)
+stargazer(tanova,type = 'text',summary = F,title = "Table de Análisis de Varianza")
+```
++ Interpretación:Dado que tenemos un valor 0, que es menor a 0.05, podemos decir que nuestros modelos no son significativamente diferentes. Pese a reducir el error, los modelos son iguales. Por lo tanto, basándonos en criterio de parsimonía, nos quedamos con el segundo modelo. El modelo que explica la Esperanza de vida de un país a través de la prevalencia de la anemia tiene mayor poder explicativo y un menor error.
+
+##COMPARACIÓN DE MODELOS
+
+```{r}
+library(stargazer)
+stargazer(modelo1,modelo2,modelo3, modelo4, type = "text")
+```
+
+
+
++ Verificamos si el modelo de regresión es adecuado:
+
+## Diagnóstico de la regresión del Modelo4
+
+1. Linealidad:
+
+Se asume relación lineal entre Y y Xs:
+
+```{r}
+# linea roja debe tender a horizontal
+plot(modelo4, 1)
+```
+
++ Interpretación: La línea roja se acerca mucho a la recta horizontal y la corta en dos ocasiones, pero cambia su dirección a medida que los datos son menos dispersos. Mantendremos la regresión hasta que tengamos mayor data.
+
+2. Homocedasticidad 
+
+- Existe homocedasticidad cuando la varianza de los errores estocásticos de la regresión es la misma para cada observación. Asimismo, se asume que el error del modelo de regresión no afecta la varianza o dispersión de la estimación (MATH^):
+
+
+```{r}
+# linea roja debe tender a horizontal
+plot(modelo4, 3)
+```
+- Interpretación: la tendencia de la línea roja no es muy horizontal, sino ligeramente decreciente. Asimismo, se muestra en la gráfica que, si bien el error de la predición no es igual durante toda Y (variable dependeinte), tampoco se concetra en un solo punto y la  línea tiende a mostrar mayor inflexión donde se muestran valores influyentes. 
+
+
++ Test para identificar homocedasticidad
+
+- H0: Hay homocedasticidad
+
+```{r}
+##install.packages("zoo")
+library(lmtest)
+# null: modelo homocedastico
+bptest(modelo4)
+```
+
++ Interpretación: si el p value es mayor a 0.05, entonces hay homocedasticidad. En este caso, aceptamos la hipótesis nula y mencionamos que la probabilidad de homocedasticidad en nuestro modelo es muy alta (p-value 0.12). 
+
+
+3. Normalidad de los residuos
+
+Los residuos deben distribuirse de manera normal:
+
+```{r}
+# puntos cerca a la diagonal
+plot(modelo4, 2)
+
+```
+
++ Interpretación: Los residuos de nuestro modelo tienden a acercarse a la línea diagonal, por lo que podemos notar un tendencia a la distribución normal. Sin embargo, los valores atípicos suelen irrumpir en la tendenci, están afectando a la regresión.
+
+Aplicación del test de Shapiro a los residuos:
+
+```{r}
+shapiro.test(modelo4$residuals)
+```
+
++ Interpretación: El p valor 0.094no  es significativo (p-valor mayor a 0.05), por lo tanto,la distribución de los residuos en nuestro modelo tiende a la normalidad. 
+
+
+4. No multicolinelidad
+
+Si los predictores tienen una correlación muy alta entre sí, hay multicolinealidad, lo cual no es deseable:
+
+```{r}
+
+library(DescTools)
+VIF(modelo4) # > 5 es problematico
+
+```
+
++ Interpretación: La variables predictoras del modelo presentan una correlación de 2.35; es decir, no presentan una correlación alta (superior a 5) y, por lo tanto, no hay multicolinealidad en nuestro modelo. Dicho de otra manera, las variables no son similares entre sí.
+
+
+5. Valores influyentes:
+
+Hay casos particulares, que tienen la capacidad de trastocar lo que el modelo representa. A veces detectándolos y suprimiéndolos, podemos ver un mejor modelo:
+
+```{r}
+plot(modelo4, 5)
+```
+
++ Interpretación:  En el gráfico observamos la presencia de valores atípicos que influyen en el modelo como el 145, 215 y 217, estos están afectando a la regresión. Así que procederemos identificar todos los valores influyentes.
+
+
+Recuperación de los casos influyentes:
+
+```{r}
+checkmodelo4=as.data.frame(influence.measures(modelo4)$is.inf)
+head(checkmodelo4)
+checkmodelo4
+```
+
+```{r}
+checkmodelo4[checkmodelo4$cook.d & checkmodelo4$hat,]
+```
+
+
+
+RECOMENDACONES FINALES
+
+- Agregar la variable "población" como "variable de control" para mejorar la calidad de la regresión y de la previsibilidad del modelo
+- Analizar con d=etenimiento los valores atípicos
+
+
+
+
+
+
+# 2 ANÁLISIS DE CONGLOMERADOS
+
+## 2.1 PARTE I: PREPARACIÓN DE LOS DATOS
+
+### 2.1.1 Importe de las base de datos
+```{r}
+##BASE DE DATOS 1
+newdata=data
+
+##BASE DE DATOS 2
+library(rio)
+datacompa <- import("Base de compañero.csv")
+```
+
+### 2.1.2 Integración de los datos
+
++ Observamos las variables de ambas bases de datos:
+```{r}
+list(names(newdata), names(datacompa))
+```
++ Seleccionamos las variables que vamos a usar de ambas "datas":
+```{r}
+##BASE DE DATA 1
+keep1=c(1,2,3,5)
+newdata=newdata[,keep1]
+
+##BASE DE DATA 2
+keep2=c(2,3,4,5)
+datacompa=datacompa[,keep2]
+```
+
++ Arreglamos los nombres de las variables:
+```{r}
+##BASE DE DATA 1
+names(newdata)[1]="Country"
+names(newdata)[2]="Life_expectancy"
+names(newdata)[3]="Access_to_water"
+names(newdata)[4]="Prevalence_anemia"
+
+
+##BASE DE DATA 2
+names(datacompa)[1]="Country"
+names(datacompa)[2]="Handwashing"
+names(datacompa)[3]="Mortality_rate"
+names(datacompa)[4]="Incidence_tuberculosis"
+```
+
++ Agrupamos la data con "merge"
+```{r}
+allData=merge(newdata,datacompa)
+```
+
++ Observación de la estructura de la nueva data:
+```{r}
+str(allData)
+```
+- Observamos que que Rstudio interpreta las variables como numéricas (excepto la primera que corresponde al nombre de los países), por lo que no necesitamos cambiarlas.
+
+
++ Descripción estadística de los datos
+```{r}
+summary(allData)
+```
+
+
+
+
+
+
+
+
+### 2.1.3. Verificando de la distribución (y posible transformación)
+
++ Observamos si existen diferentes unidades:
+```{r}
+boxplot(allData[,-1])
+```
+- Observación: los valores de Incidence_tuberculosis son muy distintos a las demás variables, por lo que debemos transformar los datos para evitar confundir a los algoritmos de conglomeración.
+
++ Tranformación de los datos
+
+1. Primera transformación de los datos
+```{r}
+##install.packages("BBmisc")
+library(BBmisc)
+boxplot(normalize(allData[,-1],method='range',range=c(0,1)))
+```
+
+2. Segunda transformación de los datos
+```{r}
+boxplot(normalize(allData[,-1],method='standardize'))
+```
+
+Nos quedaremos con la última opción:
+```{r}
+allData[,-1]=normalize(allData[,-1],method='standardize')
+allData=allData[complete.cases(allData),]
+
+##Descriptivos:
+summary(allData)
+```
+
+### 2.1.4. Vemos correlaciones
+
++ Observamos las correlaciones entre las variables
+```{r}
+cor(allData[,-1])
+```
+- Se observa que las variables Prevalence_anemia, Mortality_rate y Incidence_tuberculosis se correlacionan negativamente con el resto de variables. Las correlaciones medianamente bajas, pero practiquemos cambio de monotonía:
+
++ Cambio de monotonía
+```{r}
+allData$Mortality_rate=-1*allData$Mortality_rate
+allData$Incidence_tuberculosis=-1*allData$Incidence_tuberculosis
+allData$Prevalence_anemia=-1*allData$Prevalence_anemia
+
+##NUEVA CORRELACIÓN
+cor(allData[,-1])
+```
+
+### 2.1.5. Preparemos la data para la clusterización:
+```{r}
+dataClus=allData[,-1]
+row.names(dataClus)=allData$Country
+```
+ 
+ 
+## 2.2 PARTE II: PROCESOS DE CLUSTERIZACIÓN 
+
+## 2.2.1. ESTRATEGIA DE PARTICIÓN
+
+### PASO 1: Calcular distancias entre los casos (países):
+```{r}
+library(cluster)
+g.dist = daisy(dataClus, metric="gower")
+```
+
+### PASO 2: Proponer cantidad de clusters:
+```{r}
+set.seed(123)
+pam.resultado=pam(g.dist,4,cluster.only = F)
+
+#NUEVA COLUMNA
+dataClus$pam=pam.resultado$cluster
+```
+
+### PASO 3: EXPLORAR RESULTADOS
+```{r}
+aggregate(.~ pam, data=dataClus,mean)
+```
+
++ Reacomodamos los clusters en función de la variable "Life_expectancy"
+```{r}
+original=aggregate(.~ pam, data=dataClus,mean)
+original[order(original$Life_expectancy),]
+```
+- Vemos queen  el grupo 4 están agrupados los países que menos esperanza de vida tienen y 2 donde mayor esperanza de vida tiene. He decidido ordenarlo en función de "Life_expectancy" (esperanza de vida) porque la mayoría de las variables tiene una relación con ella; excepto con Incidence_tuberculosis donde no hay un orden.
+
++ recodificamos en función de la variable "Life_expectancy":
+```{r}
+dataClus$pam=dplyr::recode(dataClus$pam, `4` = 1, `1`=2,`3`=3,`2`=4)
+```
+- Ya tenemos nuestros clusters ordenador
+
+
+## 2.2.2. ESTRATEGIA JERÁRQUICA
+
+### Estratégica jerárquica aglomerativa
+
++ PASO 1: Decidir el linkpages
+  En este caos usaremos el de "Ward"
+  
++ PASO 2: Cálculo de clusters
+
+```{r}
+set.seed(123)
+##install.packages("factoextra")
+library(factoextra)
+
+res.agnes<- hcut(g.dist, k = 4,hc_func='agnes',hc_method = "ward.D")
+
+dataClus$agnes=res.agnes$cluster
+```
+
++ PASO 3: Explorar resultados
+```{r}
+aggregate(.~ agnes, data=dataClus,mean)
+```
+
++ PASO 4: Recondificamos
+```{r}
+original2=aggregate(.~ agnes, data=dataClus,mean)
+original2[order(original2$Life_expectancy),]
+```
+```{r}
+dataClus$agnes=dplyr::recode(dataClus$agnes, `3` = 1, `2`=2,`1`=3,`4`=4)
+```
+
+PASO 5:Visualización de los clusters con en "dendograma"
+```{r}
+fviz_dend(res.agnes, cex = 0.7, horiz = T)
+```
++ PASO 5: Comparamos
+```{r}
+table(dataClus$pam,dataClus$agnes,dnn = c('Particion','Aglomeracion'))
+```
+- Se observa que hay muy poco error
+
+
+### Estratégica jerárquica divisiva
+
+PASO 1: Calcular cluster
+```{r}
+set.seed(123)
+res.diana <- hcut(g.dist, k = 4,hc_func='diana')
+dataClus$diana=res.diana$cluster
+```
+
+PASO 2: Explorar resultados
+```{r}
+aggregate(.~ diana, data=dataClus,mean)
+```
+
+PASO 3: Recodificamos
+```{r}
+original3=aggregate(.~ diana, data=dataClus,mean)
+original3[order(original3$Life_expectancy),]
+```
+```{r}
+dataClus$diana=dplyr::recode(dataClus$diana, `4` = 1, `1`=2,`3`=3,`2`=4)
+```
+
+PASO 4: Visualizar
+```{r}
+fviz_dend(res.diana, cex = 0.7, horiz = T)
+```
+
++ PASO 5: Comparamos
+```{r}
+table(dataClus$diana,dataClus$agnes,dnn = c('Division','Aglomeracion'))
+```
+- Se observa que hay muy poco error
+
+
+
+## 2.2.3. ESTRATEGIA BASADA EN DENSIDAD
+
+PASO 1: Mapa de casos (ya no calculo la matriz de distancia porque ya está hecho en "g.dist" con "diana")
+```{r}
+proyeccion = cmdscale(g.dist, k=2,add = T) # k es la cantidad de dimensiones y cmdscale nos permite poner las distancias en un mapa
+```
+
+```{r}
+# data frame prep:
+dataClus$dim1 <- proyeccion$points[,1] #Eje X
+dataClus$dim2 <- proyeccion$points[,2] #Eje Y
+```
+
++ Visualización del mapa
+```{r}
+base= ggplot(dataClus,aes(x=dim1, y=dim2,label=row.names(dataClus))) 
+base + geom_text(size=2)
+```
++ Otros gráficos
+
+- PAM
+```{r}
+base= ggplot(dataClus,aes(x=dim1, y=dim2)) +  coord_fixed()
+base + geom_point(size=2, aes(color=as.factor(pam)))  + labs(title = "PAM") 
+```
+
+- AGNES
+```{r}
+base + geom_point(size=2, aes(color=as.factor(agnes))) + labs(title = "AGNES")
+```
+
+- DIANA
+```{r}
+base + geom_point(size=2, aes(color=as.factor(diana))) + labs(title = "DIANA")
+```
+
+### USO DE dbscan:
+
++ PASO 1 - Nuevas distancias: Las posiciones son la información para dbscan
+```{r}
+# euclidea!!
+g.dist.cmd = daisy(dataClus[,c('dim1','dim2')], metric = 'euclidean')
+```
+
++ PASO 2 - Cálculo de epsilon
+```{r}
+##install.packages("dbscan")
+library(dbscan)
+kNNdistplot(g.dist.cmd, k=3)
+```
++ PASO 3 - Obteniendo clusters
+```{r}
+##install.packages("fpc")
+library(fpc)
+db.cmd = fpc::dbscan(g.dist.cmd, eps=0.14, MinPts=6,method = 'dist')
+
+# MinPts es el números de variables (se lee "si los puntos para hacer un clster son 6 países")
+#eps es el valor cercano al codo del gráfico de dbscan
+```
+
+```{r}
+db.cmd
+```
+- Se observa que se han obtenido 2 clusters y que 7 países que no pueden ser clusterizados
+
+```{r}
+##NUEVA COLUMNA
+dataClus$db=as.factor(db.cmd$cluster)
+```
+
++ Veamos cuáles son los países no clusterizados en un gráfico:
+```{r}
+library(ggrepel)
+base= ggplot(dataClus[dataClus$db!=0,],aes(x=dim1, y=dim2)) + coord_fixed()
+
+dbplot= base + geom_point(aes(color=db)) 
+
+dbplot + geom_point(data=dataClus[dataClus$db==0,],
+                    shape=0) 
+```
+### Preparemos la data para la clusterización:
+```{r}
+dataClus=allData[,-1]
+row.names(dataClus)=allData$Country
+```
+ 
+### PASO 1: Calcular distancias entre los casos (países):
+```{r}
+library(cluster)
+g.dist = daisy(dataClus, metric="gower")
+```
+
+### Proponemos cantidad de clusters:
+```{r}
+## para PAM
+
+library(factoextra)
+fviz_nbclust(dataClus, pam,diss=g.dist,method = "gap_stat",k.max = 10,verbose = F)
+```
+```{r}
+## PARA JERARQUICO
+
+fviz_nbclust(dataClus, hcut,diss=g.dist,method = "gap_stat",k.max = 10,verbose = F,hc_func = "agnes")
+```
+```{r}
+## PARA JERARQUICO
+
+fviz_nbclust(dataClus, hcut,diss=g.dist,method = "gap_stat",k.max = 10,verbose = F,hc_func = "diana")
+```
+
+###EVALUAMOS
+```{r}
+###pam
+set.seed(123)
+grupos=4
+res.pam=pam(g.dist,k = grupos,cluster.only = F)
+dataClus$pam=res.pam$cluster
+
+###agnes
+res.agnes<- hcut(g.dist, k =grupos,hc_func='agnes',hc_method = "ward.D")
+dataClus$agnes=res.agnes$cluster
+
+### diana
+res.diana <- hcut(g.dist, k = grupos,hc_func='diana')
+dataClus$diana=res.diana$cluster
+```
+
+```{r}
+fviz_silhouette(res.pam)
+```
+```{r}
+fviz_silhouette(res.agnes)
+```
+
+```{r}
+fviz_silhouette(res.diana)
+
+```
+- La mejor forma de clausterizar es con PAM por la silueta en promedio mayor con 0.34.
+
+```{r}
+library(magrittr)
+silPAM=data.frame(res.pam$silinfo$widths)
+silPAM$country=row.names(silPAM)
+poorPAM=silPAM[silPAM$sil_width<0,'country']%>%sort()
+
+silAGNES=data.frame(res.agnes$silinfo$widths)
+silAGNES$country=row.names(silAGNES)
+poorAGNES=silAGNES[silAGNES$sil_width<0,'country']%>%sort()
+
+silDIANA=data.frame(res.diana$silinfo$widths)
+silDIANA$country=row.names(silDIANA)
+poorDIANA=silDIANA[silDIANA$sil_width<0,'country']%>%sort()
+
+##install.packages("qpcR")
+library("qpcR") 
+mal_Clus=as.data.frame(qpcR:::cbind.na(poorPAM, poorAGNES,poorDIANA))
+mal_Clus
+```
+
++ Casos mal clausterizado
+```{r}
+intersect(poorPAM,poorAGNES)
+```
+```{r}
+# en PAM pero NO en Agnes
+setdiff(poorPAM,poorAGNES)
+```
+```{r}
+setdiff(poorAGNES,poorPAM)
+```
+
+##ANÁLISIS FACTORIAL
+
+```{r}
+factorialData=merge(data,datacompa)
+```
+
+```{r}
+keep3=c(1,2,3,5,6,7,8)
+factorialData=factorialData[,keep3]
+```
+
+```{r}
+str(factorialData)
+```
+```{r}
+factorialData=factorialData[,-1]
+row.names(factorialData)=factorialData$Country
+```
+
+###PROCESO DE ANÁLISIS FACTORIAL EXPLORATORIO
+```{r}
+#install.packages("polycor")
+library(polycor)
+corMatrix=polycor::hetcor(factorialData)$correlations
+```
+
+PASO 1:
+```{r}
+##install.packages("ggcorrplot")
+library(ggcorrplot)
+ggcorrplot(corMatrix)
+```
+PASO 2:
+```{r}
+library(psych)
+psych::KMO(corMatrix) 
+```
+PASO 3:Verificar si la matriz de correlacion es adecuada
+- Matriz de identidad
+```{r}
+cortest.bartlett(corMatrix,n=nrow(factorialData))$p.value>0.05
+```
+- Matriz singular
+```{r}
+#install.packages("matrixcalc")
+library(matrixcalc)
+is.singular.matrix(corMatrix)
+```
+PASO 4: Determinar en cuantos factores o variables latentes podríamos redimensionar la data:
+
+```{r}
+fa.parallel(factorialData,fm = 'ML', fa = 'fa',correct = T)
+```
+```{r}
+library(GPArotation)
+resfa <- fa(factorialData,
+            nfactors = 1,
+            cor = 'mixed',
+            rotate = "varimax",
+            fm="minres")
+print(resfa$loadings)
+```
+
+```{r}
+fa.diagram(resfa)
+```
+
+¿Qué variables aportan mas a los factores?
+```{r}
+sort(resfa$communality)
+```
+
+¿Qué variables contribuyen a mas de un factor?
+```{r}
+sort(resfa$complexity)
+```
+
+
+
+
+
+
+
+
+
+
